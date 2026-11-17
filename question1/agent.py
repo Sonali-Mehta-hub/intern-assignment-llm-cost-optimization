@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import re
-import uuid
 from dataclasses import dataclass
 
 from shared.billing import CostSession
-from shared.kb import all_articles_blob
+from shared.kb import relevant_articles
 from shared.llm import ChatMessage, LlmClient
 from shared.tools import format_thread, get_order, get_ticket
 
@@ -32,14 +31,39 @@ def parse_resolution(text: str) -> TicketResolution:
     )
 
 
-_FEW_SHOT = """
-Example ticket resolutions (format to copy):
 
-1. Unopened headphones, day 10 → {"action":"REFUND","kb_article":"returns-within-30-days"}
-2. Ebook, license shown → {"action":"SEND_ARTICLE","kb_article":"digital-license-no-refund"}
-3. Cracked custom mug → {"action":"ESCALATE_TIER2","kb_article":"custom-items-no-replace"}
-4. Cracked stock mug, day 2 → {"action":"REPLACE","kb_article":"damage-replacement-7-days"}
-"""
+_FEW_SHOT = {
+    1: 'Unopened headphones, day 10 -> {"action":"REFUND","kb_article":"returns-within-30-days"}',
+    2: 'Ebook, license shown -> {"action":"SEND_ARTICLE","kb_article":"digital-license-no-refund"}',
+    3: 'Cracked custom mug -> {"action":"ESCALATE_TIER2","kb_article":"custom-items-no-replace"}',
+    4: 'Cracked stock mug, day 2 -> {"action":"REPLACE","kb_article":"damage-replacement-7-days"}',
+}
+
+
+def select_few_shot(ticket: dict, order: dict) -> str:
+    selected = []
+
+    product_type = str(order.get("product_type", "")).lower()
+    message = " ".join(
+        str(msg.get("text", ""))
+        for msg in ticket.get("messages", [])
+    ).lower()
+
+    if product_type == "digital" or order.get("license_revealed"):
+        selected.append(2)
+
+    if order.get("customized"):
+        selected.extend([3, 4])
+    elif order.get("damage_reported"):
+        selected.append(4)
+    elif product_type == "physical":
+        selected.append(1)
+
+    if not selected:
+        selected = [1, 2, 3, 4]
+
+    return "\n".join(_FEW_SHOT[index] for index in dict.fromkeys(selected))
+
 
 
 class SupportCopilot:
@@ -59,17 +83,18 @@ class SupportCopilot:
         order = get_order(ticket["order_id"])
         thread = format_thread(ticket)
         snapshot = json.dumps(order, indent=2)
+        kb_context = relevant_articles(ticket, order)
 
         system = "\n\n".join(
             [
-                f"Run id {uuid.uuid4()}",
                 "You are ShopAssist, the Tier-1 customer support copilot.",
-                _FEW_SHOT,
+                select_few_shot(ticket, order),
                 "HELP CENTER:",
-                all_articles_blob(),
+                kb_context,
                 (
-                    "Instructions: Think step by step. Write full reasoning, quote any article "
-                    "you rely on, then output JSON with action, kb_article, customer_reply."
+                    "Instructions: Choose the correct action and relevant help-center article. "
+                    "Write a concise customer reply. Return only JSON with action, "
+                    "kb_article, and customer_reply."
                 ),
             ]
         )

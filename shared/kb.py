@@ -49,3 +49,48 @@ def title_index(limit: int | None = 400) -> str:
     if limit:
         ids = ids[:limit]
     return "\n".join(f"{aid}" for aid in ids)
+
+
+
+def relevant_articles(ticket: dict, order: dict) -> str:
+    selected = set()
+
+    message = " ".join(
+        str(msg.get("text", ""))
+        for msg in ticket.get("messages", [])
+    ).lower()
+
+    product_type = str(order.get("product_type", "")).lower()
+
+    if product_type == "digital" and order.get("license_revealed"):
+        selected.add("digital-license-no-refund")
+
+    if product_type == "physical":
+        selected.add("returns-within-30-days")
+
+        if order.get("opened"):
+            # The referenced opened-goods policy is not available.
+            # Keep the full KB to avoid missing relevant policy context.
+            return all_articles_blob()
+
+    if order.get("damage_reported"):
+        selected.add("damage-replacement-7-days")
+
+    if order.get("customized"):
+        selected.add("custom-items-no-replace")
+
+    if (
+        product_type == "subscription"
+        or "subscription" in message
+        or "annual plan" in message
+    ):
+        selected.add("subscription-cooling-off")
+
+    if not selected:
+        return all_articles_blob()
+
+    return "\n".join(
+        f"--- {aid} ---\n{load_article(aid)}"
+        for aid in sorted(selected)
+        if aid in article_ids()
+    )
