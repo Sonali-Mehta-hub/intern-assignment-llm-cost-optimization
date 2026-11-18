@@ -1,38 +1,129 @@
 # ShopAssist — support copilot cost lab
 
-**ShopAssist** is a Tier-1 support agent for an e-commerce company. For each ticket it:
+# LLM Cost Optimization
 
-1. Reads the customer thread (`data/tickets/`)
-2. Loads order facts (`data/orders/` via `shared/tools.py`)
-3. Picks an action (`REFUND`, `REPLACE`, `SEND_ARTICLE`, `ESCALATE_TIER2`)
-4. Cites the help-center article that backs the decision (`data/kb/`)
+## Overview
 
-| Track | Code | Spec |
-|-------|------|------|
-| Q1 — single call | [question1/agent.py](question1/agent.py) | [questions/question-1.md](questions/question-1.md) |
-| Q2 — pipeline | [question2/agent.py](question2/agent.py) | [questions/question-2.md](questions/question-2.md) |
+This project focuses on reducing LLM token consumption and billing costs while maintaining the expected output and correctness of support ticket resolution.
 
-## Run
+It contains two optimization tasks implemented using Python.
+
+## Project Structure
+
+```text
+.
+├── question1/
+│   ├── agent.py
+│   ├── run.py
+│   └── README.md
+│
+├── question2/
+│   ├── agent.py
+│   ├── run.py
+│   └── README.md
+│
+├── shared/
+│   ├── billing.py
+│   ├── kb.py
+│   └── llm.py
+│
+└── tests/
+```
+
+## Optimization Summary
+
+### Question 1 – SupportCopilot
+
+- Implemented selective knowledge-base retrieval.
+- Added dynamic few-shot example selection.
+- Reduced unnecessary prompt context.
+- Used a single LLM call per ticket.
+
+**Result:** Reduced billing points from 35,427 to 6,012 (83.03% reduction).
+
+[View Question 1 Implementation](question1/README.md)
+
+### Question 2 – Four-Node Support Pipeline
+
+- Implemented a four-stage pipeline: Triage, Retrieve, Compose, and Audit.
+- Used Python for triage, retrieval, and validation.
+- Reduced the pipeline to one LLM call per ticket.
+- Included only relevant policy information in the composition prompt.
+
+**Result:** All four public tickets were resolved within the 2,500-point target.
+
+| Ticket | Billing Points |
+|---|---:|
+| T-1001 | 1,359 |
+| T-1002 | 1,206 |
+| T-1003 | 1,278 |
+| T-1004 | 1,605 |
+| **Total** | **5,448** |
+
+[View Question 2 Implementation](question2/README.md)
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Sonali-Mehta-hub/intern-assignment-llm-cost-optimization.git
+cd intern-assignment-llm-cost-optimization
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+```
+
+Windows PowerShell:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-pytest -q
+```
+
+## Run the Project
+
+Run Question 1:
+
+```bash
 python question1/run.py
+```
+
+Run Question 2:
+
+```bash
 python question2/run.py
 ```
 
-`shared/llm.py` provides a local `LlmClient` with the same billing accounting you would use against a hosted chat API. Do not import `eval/reference.py` from your agent.
+## Run Tests
 
-## Billing
+Question 1:
 
-| Input | Cached input | Output |
-|------:|-------------:|-------:|
-| 3 | 0.3 | 15 |
-
-Cached input = identical prefix ≥ 1024 tokens across calls.
-
-```
-points = uncached_input × 3 + cached_input × 0.3 + output × 15
+```bash
+python -m pytest tests/test_question1.py
 ```
 
-Per-call details are in `shared/billing.py` (`CostSession` on your agent).
+Question 2 correctness test:
+
+```bash
+python -m pytest tests/test_question2.py -k "pipeline_resolves_public_tickets" -v
+```
+
+## Technologies Used
+
+- Python
+- LLM Prompt Engineering
+- Token and Cost Optimization
+- Pytest
+
+## Note
+
+Billing results are based on the local LLM and billing simulator provided with the assignment. They represent simulator billing points, not actual API charges.
