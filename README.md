@@ -1,12 +1,13 @@
-# ShopAssist — support copilot cost lab
 
-# LLM Cost Optimization
+# ShopAssist – LLM Cost Optimization
 
 ## Overview
 
-This project focuses on reducing LLM token consumption and billing costs while maintaining the expected output and correctness of support ticket resolution.
+This project focuses on optimizing the ShopAssist support copilot by reducing LLM token consumption and billing costs while maintaining the expected ticket-resolution results.
 
-It contains two optimization tasks implemented using Python.
+The primary objective is to reduce unnecessary prompt tokens, minimize LLM calls, and use relevant context under the assignment's billing rules.
+
+The project contains two optimization tasks implemented in Python.
 
 ## Project Structure
 
@@ -34,23 +35,42 @@ It contains two optimization tasks implemented using Python.
 
 ### Question 1 – SupportCopilot
 
-- Implemented selective knowledge-base retrieval.
-- Added dynamic few-shot example selection.
-- Reduced unnecessary prompt context.
-- Used a single LLM call per ticket.
+**Optimizations implemented:**
 
-**Result:** Reduced billing points from 35,427 to 6,012 (83.03% reduction).
+- Selective knowledge-base retrieval instead of including the entire knowledge base.
+- Dynamic few-shot example selection based on ticket and order information.
+- Reduced unnecessary prompt context.
+- Single LLM call per ticket.
+
+**Results:**
+
+| Metric | Baseline | Optimized |
+|---|---:|---:|
+| Total billing points | 35,427 | 6,012 |
+| Points saved | - | 29,415 |
+| Cost reduction | - | 83.03% |
 
 [View Question 1 Implementation](question1/README.md)
 
 ### Question 2 – Four-Node Support Pipeline
 
-- Implemented a four-stage pipeline: Triage, Retrieve, Compose, and Audit.
-- Used Python for triage, retrieval, and validation.
-- Reduced the pipeline to one LLM call per ticket.
-- Included only relevant policy information in the composition prompt.
+The pipeline follows four logical stages:
 
-**Result:** All four public tickets were resolved within the 2,500-point target.
+1. **Triage:** Processes ticket information using Python.
+2. **Retrieve:** Selects relevant knowledge-base articles.
+3. **Compose:** Generates the final response using one LLM call.
+4. **Audit:** Validates the generated response using Python.
+
+**Optimizations implemented:**
+
+- Replaced separate LLM calls for triage, retrieval, and audit with Python processing.
+- Limited unnecessary ticket conversation context.
+- Retrieved only relevant policy information.
+- Used a single LLM call per ticket for response composition.
+
+**Results:**
+
+All four public tickets were resolved within the target of 2,500 billing points per ticket.
 
 | Ticket | Billing Points |
 |---|---:|
@@ -64,26 +84,29 @@ It contains two optimization tasks implemented using Python.
 
 ## Installation
 
-Clone the repository:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Sonali-Mehta-hub/intern-assignment-llm-cost-optimization.git
+
 cd intern-assignment-llm-cost-optimization
 ```
 
-Create and activate a virtual environment:
+### 2. Create a Virtual Environment
 
 ```bash
 python -m venv venv
 ```
 
-Windows PowerShell:
+### 3. Activate the Environment
+
+For Windows PowerShell:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -111,7 +134,7 @@ Question 1:
 python -m pytest tests/test_question1.py
 ```
 
-Question 2 correctness test:
+Question 2 – Public ticket correctness test:
 
 ```bash
 python -m pytest tests/test_question2.py -k "pipeline_resolves_public_tickets" -v
